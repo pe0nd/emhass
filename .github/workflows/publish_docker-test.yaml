@@ -68,6 +68,8 @@ jobs:
           path: ./OSV/*
           if-no-files-found: error
           retention-days: 1
+      - name: Debug List OSV contents before upload
+        run: ls -R ./OSV/    
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
