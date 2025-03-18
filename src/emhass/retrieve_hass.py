@@ -94,11 +94,11 @@ class RetrieveHass:
         if self.hass_url == "http://supervisor/core/api":
             url = self.hass_url + "/config"
         else:
-            if self.hass_url[-1] != '/':
+            if self.hass_url[-1] != "/":
                 self.logger.warning(
                     "Missing slash </> at the end of the defined URL, appending a slash but please fix your URL"
                 )
-                self.hass_url = self.hass_url + '/'
+                self.hass_url = self.hass_url + "/"
             url = self.hass_url + "api/config"
 
         try:
@@ -166,11 +166,11 @@ class RetrieveHass:
                             + var
                         )
                     else:  # Otherwise the Home Assistant Core API it is
-                        if self.hass_url[-1] != '/':
+                        if self.hass_url[-1] != "/":
                             self.logger.warning(
                                 "Missing slash </> at the end of the defined URL, appending a slash but please fix your URL"
                             )
-                            self.hass_url = self.hass_url + '/'
+                            self.hass_url = self.hass_url + "/"
                         url = (
                             self.hass_url
                             + "api/history/period/"

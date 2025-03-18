@@ -7,7 +7,8 @@
       "select_options": [
         "profit",
         "cost",
-        "self-consumption"
+        "self-consumption",
+        "peak-shave"
       ],
       "default_value": "profit"
     },
@@ -226,6 +227,15 @@
       "default_value": 0.1419,
       "requires": {
         "production_price_forecast_method": "constant"
+      }
+    },
+    "peak_cost": {
+      "friendly_name": "Weight for grid connection peak",
+      "Description": "This values determines how much the peak, i.e., max(grid_positive, grid_negative) will be weighted in the cost function. The higher the value, the more the peak will be penalized.",
+      "input": "float",
+      "default_value": 1000.0,
+      "requires": {
+        "costfun": "peak-shave"
       }
     }
   },

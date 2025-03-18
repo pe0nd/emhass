@@ -39,6 +39,7 @@ class Optimization:
         plant_conf: dict,
         var_load_cost: str,
         var_prod_price: str,
+        var_peak_cost: str,
         costfun: str,
         emhass_conf: dict,
         logger: logging.Logger,
@@ -88,6 +89,7 @@ class Optimization:
         self.logger = logger
         self.var_load_cost = var_load_cost
         self.var_prod_price = var_prod_price
+        self.var_peak_cost = var_peak_cost
         self.optim_status = None
         if "lp_solver" in optim_conf.keys():
             self.lp_solver = optim_conf["lp_solver"]
@@ -116,6 +118,7 @@ class Optimization:
         P_load: np.array,
         unit_load_cost: np.array,
         unit_prod_price: np.array,
+        unit_peak_cost: Optional[float] = 1e3,
         soc_init: Optional[float] = None,
         soc_final: Optional[float] = None,
         def_total_hours: Optional[list] = None,
@@ -143,6 +146,8 @@ class Optimization:
             This is the price of the energy injected to the utility in a vector \
             sampled at the fixed freq value.
         :type unit_prod_price: np.array
+        :param unit_peak_cost: The cost of peak power consumption. \
+        :type unit_peak_cost: float
         :param soc_init: The initial battery SOC for the optimization. This parameter \
             is optional, if not given soc_init = soc_final = soc_target from the configuration file.
         :type soc_init: float
@@ -217,6 +222,15 @@ class Optimization:
             )
             for i in set_I
         }
+        # new variable for the peak load
+        if self.costfun == "peak-shave":
+            P_peak = plp.LpVariable(
+                cat="Continuous",
+                lowBound=0,
+                upBound=self.plant_conf["maximum_peak_power"],
+                name="P_peak",
+            )
+
         P_deferrable = []
         P_def_bin1 = []
         for k in range(self.optim_conf["number_of_deferrable_loads"]):
@@ -362,6 +376,29 @@ class Optimization:
             else:
                 objective = plp.lpSum(
                     -0.001 * self.timeStep * unit_load_cost[i] * P_grid_pos[i]
+                    for i in set_I
+                )
+        elif self.costfun == "peak-shave":
+            if self.optim_conf["set_total_pv_sell"]:
+                objective = plp.lpSum(
+                    unit_peak_cost * P_peak
+                    - 0.001
+                    * self.timeStep
+                    * (
+                        unit_load_cost[i] * (P_load[i] + P_def_sum[i])
+                        + unit_prod_price[i] * P_grid_neg[i]
+                    )
+                    for i in set_I
+                )
+            else:
+                objective = plp.lpSum(
+                    unit_peak_cost * P_peak
+                    - 0.001
+                    * self.timeStep
+                    * (
+                        unit_load_cost[i] * P_grid_pos[i]
+                        + unit_prod_price[i] * P_grid_neg[i]
+                    )
                     for i in set_I
                 )
         elif self.costfun == "self-consumption":
@@ -553,6 +590,24 @@ class Optimization:
                         for i in set_I
                     }
                 )
+
+        # constaints to define the peak load
+        if self.costfun == "peak-shave":
+            constraints.update(
+                {
+                    "constraint_peak_up_{}".format(i): plp.LpConstraint(
+                        e=P_peak - P_grid_pos[i], sense=plp.LpConstraintGE, rhs=0
+                    )
+                    for i in set_I
+                }
+            )
+            constraints.update(
+                {
+                    "constraint_peak_down_{}".format(i): plp.LpConstraint(
+                        e=P_peak - P_grid_neg[i], sense=plp.LpConstraintGE, rhs=0
+                    )
+                }
+            )
 
         # Avoid injecting and consuming from grid at the same time
         constraints.update(
@@ -1347,9 +1402,15 @@ class Optimization:
             P_load = data_tp[self.var_load_new].values
             unit_load_cost = data_tp[self.var_load_cost].values  # €/kWh
             unit_prod_price = data_tp[self.var_prod_price].values  # €/kWh
+            unit_peak_cost = data_tp[self.var_peak_cost].values  # €/kW
             # Call optimization function
             opt_tp = self.perform_optimization(
-                data_tp, P_PV, P_load, unit_load_cost, unit_prod_price
+                data_tp,
+                P_PV,
+                P_load,
+                unit_load_cost,
+                unit_prod_price,
+                unit_peak_cost=unit_peak_cost,
             )
             if len(self.opt_res) == 0:
                 self.opt_res = opt_tp
@@ -1380,6 +1441,7 @@ class Optimization:
         self.logger.info("Perform optimization for the day-ahead")
         unit_load_cost = df_input_data[self.var_load_cost].values  # €/kWh
         unit_prod_price = df_input_data[self.var_prod_price].values  # €/kWh
+        unit_peak_cost = df_input_data[self.var_peak_cost].values  # €/kW
         # Call optimization function
         self.opt_res = self.perform_optimization(
             df_input_data,
@@ -1387,6 +1449,7 @@ class Optimization:
             P_load.values.ravel(),
             unit_load_cost,
             unit_prod_price,
+            unit_peak_cost=unit_peak_cost,
         )
         return self.opt_res
 
@@ -1452,6 +1515,7 @@ class Optimization:
             ]
         unit_load_cost = df_input_data[self.var_load_cost].values  # €/kWh
         unit_prod_price = df_input_data[self.var_prod_price].values  # €/kWh
+        unit_peak_cost = df_input_data[self.var_peak_cost].values  # €/kW
         # Call optimization function
         self.opt_res = self.perform_optimization(
             df_input_data,
@@ -1465,6 +1529,7 @@ class Optimization:
             def_total_timestep=def_total_timestep,
             def_start_timestep=def_start_timestep,
             def_end_timestep=def_end_timestep,
+            unit_peak_cost=unit_peak_cost,
         )
         return self.opt_res
 

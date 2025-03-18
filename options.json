@@ -4,10 +4,10 @@
   "solcast_api_key": "empty",
   "solcast_rooftop_id": "empty",
   "solar_forecast_kwp": 0,
-  "time_zone": "Europe/Paris",
-  "Latitude": 0,
-  "Longitude": 0,
-  "Altitude": 0,
+  "time_zone": "Asia/Dhaka",
+  "Latitude": 23.8,
+  "Longitude": 90.4,
+  "Altitude": 35,
   "data_path": "default",
-  "server_ip": "0.0.0.0"
+  "server_ip": "127.0.0.1"
 }

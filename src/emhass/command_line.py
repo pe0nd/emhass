@@ -28,6 +28,7 @@ default_csv_filename = "opt_res_latest.csv"
 default_pkl_suffix = "_mlf.pkl"
 default_metadata_json = "metadata.json"
 
+
 def set_input_data_dict(
     emhass_conf: dict,
     costfun: str,
@@ -128,6 +129,7 @@ def set_input_data_dict(
         plant_conf,
         fcst.var_load_cost,
         fcst.var_prod_price,
+        "unit_peak_cost",
         costfun,
         emhass_conf,
         logger,
@@ -234,10 +236,11 @@ def set_input_data_dict(
         df_input_data, days_list = None, None
     elif set_type == "naive-mpc-optim":
         if (
-            (optim_conf.get("load_forecast_method", None) == "list"
-                and optim_conf.get("weather_forecast_method", None) == "list")
-            or (optim_conf.get("load_forecast_method", None) == "list"
-                and not(optim_conf["set_use_pv"]))
+            optim_conf.get("load_forecast_method", None) == "list"
+            and optim_conf.get("weather_forecast_method", None) == "list"
+        ) or (
+            optim_conf.get("load_forecast_method", None) == "list"
+            and not (optim_conf["set_use_pv"])
         ):
             days_list = None
             set_mix_forecast = False
@@ -248,7 +251,9 @@ def set_input_data_dict(
                 with open(emhass_conf["data_path"] / test_df_literal, "rb") as inp:
                     rh.df_final, days_list, var_list, rh.ha_config = pickle.load(inp)
                 if optim_conf["set_use_pv"]:
-                    retrieve_hass_conf["sensor_power_load_no_var_loads"] = str(var_list[0])
+                    retrieve_hass_conf["sensor_power_load_no_var_loads"] = str(
+                        var_list[0]
+                    )
                     retrieve_hass_conf["sensor_power_photovoltaics"] = str(var_list[1])
                     retrieve_hass_conf["sensor_linear_interp"] = [
                         retrieve_hass_conf["sensor_power_photovoltaics"],
@@ -258,7 +263,9 @@ def set_input_data_dict(
                         retrieve_hass_conf["sensor_power_photovoltaics"]
                     ]
                 else:
-                    retrieve_hass_conf["sensor_power_load_no_var_loads"] = str(var_list[0])
+                    retrieve_hass_conf["sensor_power_load_no_var_loads"] = str(
+                        var_list[0]
+                    )
                     retrieve_hass_conf["sensor_linear_interp"] = [
                         retrieve_hass_conf["sensor_power_load_no_var_loads"],
                     ]
@@ -1506,7 +1513,7 @@ def publish_json(
         data_df=entity_data[metadata[entity_id]["name"]],
         idx=idx_closest,
         entity_id=entity_id,
-        device_class=dict.get(metadata[entity_id],"device_class"),
+        device_class=dict.get(metadata[entity_id], "device_class"),
         unit_of_measurement=metadata[entity_id]["unit_of_measurement"],
         friendly_name=metadata[entity_id]["friendly_name"],
         type_var=metadata[entity_id].get("type_var", ""),
